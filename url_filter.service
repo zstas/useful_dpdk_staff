@@ -1,0 +1,16 @@
+[Unit]
+Description=URL Filter written with DPDK library
+After=network.target auditd.service dpdk.service
+
+[Service]
+ExecStart=/opt/url_filter/http_block -c /opt/url_filter/filter.conf
+ExecReload=/bin/kill -SIGHUP $MAINPID 
+KillMode=process
+Restart=on-failure
+RestartPreventExitStatus=255
+Type=simple
+StandardOutput=null
+
+[Install]
+WantedBy=multi-user.target
+

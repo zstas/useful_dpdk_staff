@@ -1,0 +1,67 @@
+---
+- hosts: all
+  become: yes
+  vars:
+    dpdk:
+     directory: /opt
+     url: http://fast.dpdk.org/rel/
+     name: dpdk-18.11.tar.xz
+  remote_user: zstas
+  tasks:
+  - name: create directory for DPDK {{ dpdk.directory }}
+    file: state=directory path={{ dpdk.directory }}
+  - name: download dpdk archive
+    get_url: url={{ dpdk.url + dpdk.name }} dest={{ dpdk.directory }}
+  - name: Unarchive a file that is already on the remote machine
+    unarchive:
+     src: "{{ dpdk.directory }}/{{ dpdk.name }}"
+     dest: "{{ dpdk.directory}}"
+     remote_src: yes
+     list_files: true
+    register: arch_output
+  - name: Delete archive
+    file:
+      state: absent
+      path: "{{ dpdk.directory }}/{{ dpdk.name }}"
+  - name: Show files 
+    shell: "echo {{ arch_output.files[0] }}"
+  - name: Install the package "libnuma-dev"
+    apt:
+      name: libnuma-dev
+  - name: Generate make config for dpdk
+    make:
+     chdir: "{{ dpdk.directory }}/{{ arch_output.files[0] }}"
+     target: config
+     params:
+      T: x86_64-native-linuxapp-gcc
+  - name: Compiling dpdk
+    make:
+     chdir: "{{ dpdk.directory }}/{{ arch_output.files[0] }}"
+     target: all
+     params:
+      T: x86_64-native-linuxapp-gcc
+  - shell: uname -r
+    register: uname_result
+  - file:
+     src: "{{ dpdk.directory }}/{{ arch_output.files[0] }}build/kmod/igb_uio.ko"
+     dest: "/lib/modules/{{ uname_result['stdout'] }}/igb_uio.ko"
+     state: link
+  - lineinfile:
+     path: /etc/modules
+     state: present
+     line: 'uio'
+  - lineinfile:
+     path: /etc/modules
+     state: present
+     line: 'igb_uio'
+  - shell: depmod -a
+  - lineinfile:
+     path: /etc/sysctl.conf
+     state: present
+     line: 'vm.nr_hugepages = 1536'
+  - name: create directory for hugepages
+    file: state=directory path=/mnt/huge
+  - lineinfile:
+     path: /etc/fstab
+     state: present
+     line: 'hugetlbfs /mnt/huge hugetlbfs defaults 0 0'

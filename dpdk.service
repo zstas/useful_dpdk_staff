@@ -1,0 +1,15 @@
+[Unit]
+Description=Bind NIC DPDK driver
+After=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+
+ExecStart=/opt/dpdk-stable-17.11.4/usertools/dpdk-devbind.py --bind=igb_uio 0000:06:00.0
+ExecStartPost=/opt/dpdk-stable-17.11.4/usertools/dpdk-devbind.py --bind=igb_uio 0000:06:00.1
+ExecStop=/opt/dpdk-stable-17.11.4/usertools/dpdk-devbind.py --unbind=igb_uio 0000:06:00.0
+ExecStopPost=/opt/dpdk-stable-17.11.4/usertools/dpdk-devbind.py --unbind=igb_uio 0000:06:00.1
+
+[Install]
+WantedBy=multi-user.target
